@@ -2,7 +2,7 @@
 
 // defines
 #define PORT 80
-#define WEBROOT "/home/goliath/httpd/html/"
+#define WEBROOT "/home/goliath/Project/Project_holbertonschool/webserver/web/"
 #define BUFFER_SIZE 1024
 
 void fatal(const char *message)
