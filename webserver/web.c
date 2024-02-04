@@ -1,7 +1,7 @@
 #include "main.h"
 
 // defines
-#define PORT 80
+#define PORT 5500
 #define WEBROOT "/home/goliath/Project/Project_holbertonschool/webserver/web/"
 #define BUFFER_SIZE 1024
 
@@ -47,7 +47,7 @@ void handle_connection(int sockfd, struct sockaddr_in *client_addr_ptr)
     int php_sockfd = socket(PF_INET, SOCK_STREAM, 0);
     struct sockaddr_in php_addr;
     php_addr.sin_family = AF_INET;
-    php_addr.sin_port = htons(9000);
+    php_addr.sin_port = htons(5500);
     php_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     connect(php_sockfd, (struct sockaddr *)&php_addr, sizeof(php_addr));
     send(php_sockfd, buffer, numbytes, 0);
