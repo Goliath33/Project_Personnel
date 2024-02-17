@@ -36,7 +36,15 @@ void handle_connection(int sockfd, struct sockaddr_in *client_addr_ptr)
         perror("open");
         return;
     }
-    // Do something with the file...
+
+    // Read the file into the buffer
+    numbytes = read(fd, buffer, BUFFER_SIZE);
+    if (numbytes == -1)
+    {
+        perror("read");
+        close(fd); // Close the file
+        return;
+    }
     close(fd); // Close the file
 
     // Open the index.php file
@@ -46,14 +54,13 @@ void handle_connection(int sockfd, struct sockaddr_in *client_addr_ptr)
         perror("open");
         return;
     }
-    // Do something with the file...
-    close(fd); // Close the file
-
+    
     // Read the file into the buffer
     numbytes = read(fd, buffer, BUFFER_SIZE);
     if (numbytes == -1)
     {
         perror("read");
+        close(fd); // Close the file
         return;
     }
 
@@ -63,8 +70,16 @@ void handle_connection(int sockfd, struct sockaddr_in *client_addr_ptr)
     php_addr.sin_family = AF_INET;
     php_addr.sin_port = htons(5500);
     php_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    connect(php_sockfd, (struct sockaddr *)&php_addr, sizeof(php_addr));
-    send(php_sockfd, buffer, numbytes, 0);
+    if (connect(php_sockfd, (struct sockaddr *)&php_addr, sizeof(php_addr)) == -1)
+    {
+        perror("connect");
+        return;
+    }
+    if (send(php_sockfd, buffer, numbytes, 0) == -1)
+    {
+        perror("send");
+        return;
+    }
 
     // Receive the response from the PHP-FPM server
     numbytes = recv(php_sockfd, buffer, BUFFER_SIZE, 0);
@@ -75,8 +90,7 @@ void handle_connection(int sockfd, struct sockaddr_in *client_addr_ptr)
     }
 
     // Send the response to the client
-    numbytes = send(sockfd, buffer, numbytes, 0);
-    if (numbytes == -1)
+    if (send(sockfd, buffer, numbytes, 0) == -1)
     {
         perror("send");
         return;
@@ -107,18 +121,18 @@ int main(void)
     if (listen(sockfd, 20) == -1)
         fatal("listenning on socket");
     while (1)
-        { // Boucle d'acceptation des connexions entrantes.
-            sin_size = sizeof(struct sockaddr_in);
-            new_sockfd = accept(sockfd, (struct sockaddr *)&client_addr, &sin_size);
-            if (new_sockfd == -1)
-                fatal("accepting connection");
+    { // Boucle d'acceptation des connexions entrantes.
+        sin_size = sizeof(struct sockaddr_in);
+        new_sockfd = accept(sockfd, (struct sockaddr *)&client_addr, &sin_size);
+        if (new_sockfd == -1)
+            fatal("accepting connection");
 
-            pthread_t thread_id;
-            if (pthread_create(&thread_id, NULL, thread_function, &new_sockfd) != 0)
-                fatal("creating thread");
+        pthread_t thread_id;
+        if (pthread_create(&thread_id, NULL, thread_function, &new_sockfd) != 0)
+            fatal("creating thread");
 
-            // Vous pouvez également détacher le thread si vous ne voulez pas attendre qu'il se termine.
-            pthread_detach(thread_id);
-        }
+        // Vous pouvez également détacher le thread si vous ne voulez pas attendre qu'il se termine.
+        pthread_detach(thread_id);
+    }
     return 0;
 }
