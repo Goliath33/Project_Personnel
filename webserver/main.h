@@ -12,8 +12,9 @@
 #include <pthread.h>
 #include <fcntl.h>
 
-// Déclaration de vos fonctions
+// Fonctions
 void fatal(const char *message);
+void *thread_function(void *arg);
 void handle_connection(int sockfd, struct sockaddr_in *client_addr_ptr);
 
 #endif // MAIN_H

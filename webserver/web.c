@@ -1,14 +1,24 @@
 #include "main.h"
 
 // defines
-#define PORT 5500
+#define PORT 80
 #define WEBROOT "/home/goliath/Project/Project_holbertonschool/webserver/web/"
 #define BUFFER_SIZE 1024
 
+// function prototypes
 void fatal(const char *message)
 {
     perror(message);
     exit(EXIT_FAILURE);
+}
+
+void *thread_function(void *arg)
+{
+    int new_sockfd = *(int *)arg;
+    struct sockaddr_in client_addr;
+    handle_connection(new_sockfd, &client_addr);
+    close(new_sockfd);
+    return NULL;
 }
 
 void handle_connection(int sockfd, struct sockaddr_in *client_addr_ptr)
@@ -26,7 +36,9 @@ void handle_connection(int sockfd, struct sockaddr_in *client_addr_ptr)
         perror("open");
         return;
     }
-        
+    // Do something with the file...
+    close(fd); // Close the file
+
     // Open the index.php file
     fd = open(WEBROOT "index.php", O_RDONLY);
     if (fd == -1)
@@ -34,6 +46,8 @@ void handle_connection(int sockfd, struct sockaddr_in *client_addr_ptr)
         perror("open");
         return;
     }
+    // Do something with the file...
+    close(fd); // Close the file
 
     // Read the file into the buffer
     numbytes = read(fd, buffer, BUFFER_SIZE);
@@ -74,7 +88,8 @@ void handle_connection(int sockfd, struct sockaddr_in *client_addr_ptr)
     close(sockfd);
 }
 
-int main(void) {
+int main(void)
+{
     int sockfd, new_sockfd, yes = 1;
     struct sockaddr_in host_addr, client_addr;
     socklen_t sin_size;
@@ -92,12 +107,18 @@ int main(void) {
     if (listen(sockfd, 20) == -1)
         fatal("listenning on socket");
     while (1)
-    { // Boucle d'acceptation des connexions entrantes.
-        sin_size = sizeof(struct sockaddr_in);
-        new_sockfd = accept(sockfd, (struct sockaddr *)&client_addr, &sin_size);
-        if (new_sockfd == -1)
-            fatal("accepting connection");
-        handle_connection(new_sockfd, &client_addr);
-    }
+        { // Boucle d'acceptation des connexions entrantes.
+            sin_size = sizeof(struct sockaddr_in);
+            new_sockfd = accept(sockfd, (struct sockaddr *)&client_addr, &sin_size);
+            if (new_sockfd == -1)
+                fatal("accepting connection");
+
+            pthread_t thread_id;
+            if (pthread_create(&thread_id, NULL, thread_function, &new_sockfd) != 0)
+                fatal("creating thread");
+
+            // Vous pouvez également détacher le thread si vous ne voulez pas attendre qu'il se termine.
+            pthread_detach(thread_id);
+        }
     return 0;
 }
