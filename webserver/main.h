@@ -11,9 +11,13 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 #include <fcntl.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 // Fonctions
-void fatal(const char *message);
+int main(void);
+void fatal(char *message);
 void *thread_function(void *arg);
 void handle_connection(int sockfd, struct sockaddr_in *client_addr_ptr);
 
