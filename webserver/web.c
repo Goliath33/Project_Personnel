@@ -47,14 +47,9 @@ void handle_connection(int sockfd, struct sockaddr_in *client_addr_ptr)
     }
     close(fd); // Close the file
 
-    // Open the index.php file
-    fd = open(WEBROOT "index.php", O_RDONLY);
-    if (fd == -1)
-    {
-        perror("open");
-        return;
-    }
-    
+    return 0;
+}
+
     // Read the file into the buffer
     numbytes = read(fd, buffer, BUFFER_SIZE);
     if (numbytes == -1)
