@@ -17,7 +17,7 @@
 
 // Fonctions
 int main(void);
-void fatal(char *message);
+void fatal(const char *message);
 void *thread_function(void *arg);
 void handle_connection(int sockfd, struct sockaddr_in *client_addr_ptr);
 
