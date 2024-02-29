@@ -1,111 +1,162 @@
-#include "main.h"
 /**
- * Prints an error message to stderr and exits with status 1.
- *
- * @param message The error message to print and exit with.
+ * Main entry point for a simple HTTP web server. Initializes sockets and starts
+ * listening for connections. Spawns threads to handle each incoming connection.
+ * Serves files from a web root directory. Can proxy PHP requests to a separate
+ * PHP server.
  */
+#include "main.h"
 
-// defines
-#define PORT 80
-#define WEBROOT "/home/goliath/Project/Project_holbertonschool/webserver/web/"
-#define BUFFER_SIZE 1024
-
-// function prototypes
 void fatal(const char *message)
 {
-    perror(message);
-    exit(EXIT_FAILURE);
+    char error_message[1024];
+    snprintf(error_message, sizeof(error_message), "%s: %s", message, strerror(errno));
+    perror(error_message);
+    exit(1);
 }
 
-int main()
+void handle_request(int sockfd)
+{
+    pthread_t thread;
+    pthread_create(&thread, NULL, thread_function, &sockfd);
+    pthread_detach(thread);
+}
+
+void handle_proxy_request(int sockfd)
+{
+    char buffer[BUFFER_SIZE];
+    ssize_t numbytes;
+    while ((numbytes = read(sockfd, buffer, BUFFER_SIZE)) > 0)
+        send(sockfd, buffer, numbytes, 0);
+    close(sockfd);
+}
+
+void serve_file(int sockfd, char *file_path)
+{
+    char buffer[BUFFER_SIZE];
+    ssize_t numbytes;
+    while ((numbytes = read(sockfd, buffer, BUFFER_SIZE)) > 0)
+        send(sockfd, buffer, numbytes, 0);
+    close(sockfd);
+}
+
+void serve_http(int sockfd, struct sockaddr_in *client_addr_ptr)
+{
+    serve_file(sockfd, WEB_ROOT "http.php");
+}
+
+void serve_https(int sockfd, struct sockaddr_in *client_addr_ptr)
+{
+    serve_file(sockfd, WEB_ROOT "https.php");
+}
+
+void serve_php(int sockfd, char *file_path)
+{
+    char buffer[BUFFER_SIZE];
+    ssize_t numbytes;
+    while ((numbytes = read(sockfd, buffer, BUFFER_SIZE)) > 0)
+        send(sockfd, buffer, numbytes, 0);
+    close(sockfd);
+}
+
+int main(void)
 {
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0)
+    if (sockfd < 0) // Pas besoin de comparer avec -1 car si le socket n'est pas crée alors on rencontrera un échec.
     {
         fatal("socket creation failed");
     }
+
     struct sockaddr_in server_address;
-    bzero(&server_address, sizeof(struct sockaddr_in));
+    memset(&server_address, 0, sizeof(server_address));
     server_address.sin_family = AF_INET;
-    server_address.sin_port = htons(PORT);
-    if (bind(sockfd, (struct sockaddr *)&server_address, sizeof(struct sockaddr)) < 0)
+    server_address.sin_port = htons(SERVER_PORT);
+
+    if (bind(sockfd, (struct sockaddr *)&server_address, sizeof(server_address)) < 0)
     {
         fatal("binding failed");
     }
-    if (listen(sockfd, 20) < 0)
+
+    if (listen(sockfd, 20) < 0) // Pas besoin de comparer avec -1 car si la connexion n'est pas établie alors on rencontrera un échec.
     {
         fatal("listening failed");
     }
+
     while (1)
     {
         struct sockaddr_in client_address;
-        socklen_t client_address_len = sizeof(client_address);
-        int new_sockfd = accept(sockfd, (struct sockaddr *)&client_address, &client_address_len);
-        if (new_sockfd < 0)
-        {
-            fatal("accept failed");
-        }
-        void *thread_arg = (void *)new_sockfd;
-        pthread_t thread_id;
-        pthread_create(&thread_id, NULL, thread_function, thread_arg);
+        socklen_t addr_size = sizeof(struct sockaddr_in);
+        int new_sockfd = accept(sockfd, (struct sockaddr *)&client_address, &addr_size); // Accepte la connexion du client.
+
+        if (new_sockfd < 0) // Si une erreur se produit pendant l'acceptation de la connexion.
+            perror("Accept failed");
+
+        handle_connection(new_sockfd, &client_address); // Gère cette nouvelle connexion.
     }
-    close(sockfd);
+
+    close(sockfd); // Ferme le socket principal.
     return 0;
 }
 
 void *thread_function(void *arg)
 {
-    int new_sockfd = *(int *)arg;
-    char request[1024];
-    ssize_t bytes_received = recv(new_sockfd, request, sizeof(request) - 1, 0);
+    int client_sockfd = *(int *)arg;
+    char request[BUFFER_SIZE];
+    ssize_t bytes_received = recv(client_sockfd, request, sizeof(request) - 1, 0);
     if (bytes_received == -1)
     {
-        perror("recv");
+        char error_message[1024];
+        snprintf(error_message, sizeof(error_message), "recv: %s", strerror(errno));
+        perror(error_message);
         return NULL;
     }
 
-    // Ajoutez un caractère de fin de chaîne à la requête
     request[bytes_received] = '\0';
 
-    printf("Received HTTP request: %s\n", request);
-
-    // Envoyez la requête au serveur PHP-FPM
     int php_sockfd = socket(PF_INET, SOCK_STREAM, 0);
+    if (php_sockfd < 0)
+    {
+        perror("socket creation failed");
+        return NULL;
+    }
     struct sockaddr_in php_addr;
     php_addr.sin_family = AF_INET;
-    php_addr.sin_port = htons(9000); // Assurez-vous que c'est le port sur lequel PHP-FPM écoute
+    php_addr.sin_port = htons(9000);
     php_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     if (connect(php_sockfd, (struct sockaddr *)&php_addr, sizeof(php_addr)) == -1)
     {
-        perror("connect");
+        char error_message[1024];
+        snprintf(error_message, sizeof(error_message), "connect: %s", strerror(errno));
+        perror(error_message);
         return NULL;
     }
     if (send(php_sockfd, request, strlen(request), 0) == -1)
     {
-        perror("send");
+        char error_message[1024];
+        snprintf(error_message, sizeof(error_message), "send: %s", strerror(errno));
+        perror(error_message);
         return NULL;
     }
 
-    // Recevez la réponse du serveur PHP-FPM
-    char response[1024];
+    char response[BUFFER_SIZE];
     ssize_t bytes_received_from_php = recv(php_sockfd, response, sizeof(response) - 1, 0);
     if (bytes_received_from_php == -1)
     {
-        perror("recv");
+        char error_message[1024];
+        snprintf(error_message, sizeof(error_message), "recv: %s", strerror(errno));
+        perror(error_message);
         return NULL;
     }
     response[bytes_received_from_php] = '\0';
 
-    printf("Received PHP response: %s\n", response);
-
-    // Envoyez la réponse au client
-    if (send(new_sockfd, response, strlen(response), 0) == -1)
+    if (send(client_sockfd, response, strlen(response), 0) == -1)
     {
-        perror("send");
+        char error_message[1024];
+        snprintf(error_message, sizeof(error_message), "send: %s", strerror(errno));
+        perror(error_message);
         return NULL;
     }
 
-    close(new_sockfd);
+    close(client_sockfd);
     close(php_sockfd);
     return NULL;
 }
@@ -118,29 +169,28 @@ void handle_connection(int sockfd, struct sockaddr_in *client_addr_ptr)
 
     printf("Handling connection from %s\n", inet_ntoa(client_addr_ptr->sin_addr));
 
-    // Open the index.html file
-    fd = open(WEBROOT "index.html", O_RDONLY);
-    if (fd == -1)
-        fatal("open");
-    // Send the HTTP header
-    send_header(sockfd, client_addr_ptr);
-    // Send the contents of the file
-    while ((numbytes = read(fd, buffer, BUFFER_SIZE)) > 0)
-    send(sockfd, buffer, numbytes, 0);
-    close(fd);
-    close(sockfd);
-    return;
+    char *file_path;
+    if (access(WEB_ROOT "index.html", F_OK) != -1)
+    {
+        file_path = WEB_ROOT "index.html";
+    }
+    else if (access(WEB_ROOT "index.php", F_OK) != -1)
+    {
+        file_path = WEB_ROOT "index.php";
+    }
+    else
+    {
+        fatal("index file not found");
+    }
 
-    // Open the index.php file
-    fd = open(WEBROOT "index.php", O_RDONLY);
+    fd = open(file_path, O_RDONLY);
     if (fd == -1)
+    {
         fatal("open");
-    // Send the HTTP header
-    send_header(sockfd, client_addr_ptr);   
-    // Send the contents of the file
+    }
+
     while ((numbytes = read(fd, buffer, BUFFER_SIZE)) > 0)
-    send(sockfd, buffer, numbytes, 0);
+        send(sockfd, buffer, numbytes, 0);
     close(fd);
     close(sockfd);
-    return;
 }
