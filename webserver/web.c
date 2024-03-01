@@ -1,9 +1,7 @@
 /**
- * Main entry point for a simple HTTP web server. Initializes sockets and starts
- * listening for connections. Spawns threads to handle each incoming connection.
- * Serves files from a web root directory. Can proxy PHP requests to a separate
- * PHP server.
+ * AUTHOR : GOLIATH
  */
+
 #include "main.h"
 
 void fatal(const char *message)

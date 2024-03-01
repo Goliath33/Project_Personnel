@@ -1,3 +1,9 @@
+/**
+ * Simple Web Server html + php
+ * AUTHOR : GOLIATH
+ * VERSION : 1.0.0
+ */
+
 #ifndef MAIN_H
 #define MAIN_H
 

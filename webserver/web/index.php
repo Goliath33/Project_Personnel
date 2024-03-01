@@ -1,0 +1,1 @@
+Salut warix ça fonction même en php !!!

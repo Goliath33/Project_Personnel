@@ -6,17 +6,29 @@
 #include <string.h>
 #include <openssl/sha.h>
 #include <time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
-typedef struct Block
-{
+typedef struct {
     int index;
-    char timestamp[64];
-    char data[256];
-    char hash[64];
-    char previousHash[64];
+    char timestamp[20];
+    char data[1024];
+    char previousHash[SHA256_DIGEST_LENGTH * 2 + 1];
+    char hash[SHA256_DIGEST_LENGTH * 2 + 1];
 } Block;
 
-void calculateHash(Block *block, char *hash);
+//Prototypes
+int main();
+void fatal(const char *message);
+void calculateHash(char *data, int length, unsigned char *hash);
+void calculateHash(Block *block);
+void printBlock(Block *block);
+void printBlocks(Block **blocks, int length);
+void printHash(char *hash);
+Block **createChain(int length);
+Block *createGenesisBlock();
 Block *createBlock(int index, char *timestamp, char *data, char *previousHash);
+Block *addBlock(Block *blockchain, int index, char *data);
 
 #endif
