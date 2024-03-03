@@ -21,7 +21,7 @@ typedef struct {
 //Prototypes
 int main();
 void fatal(const char *message);
-void calculateHash(char *data, int length, unsigned char *hash);
+void calculateHash(char *data, size_t length, unsigned char *hash);
 void calculateHash(Block *block);
 void printBlock(Block *block);
 void printBlocks(Block **blocks, int length);

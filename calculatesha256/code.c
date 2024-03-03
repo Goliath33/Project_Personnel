@@ -14,7 +14,7 @@ void calculateHash(char *data, size_t length, unsigned char *hash)
     SHA256((unsigned char *)data, length, hash);
     for (int i = 0; i < SHA256_DIGEST_LENGTH; i++)
     {
-        snprintf(hash + (i * 2), sizeof(hash) - (i * 2), "%02x", hash[i]);
+        snprintf(hash + (i * 2), size_t(hash) - (i * 2), "%02x", hash[i]);
     }
     hash[SHA256_DIGEST_LENGTH * 2] = '\0';
     return;

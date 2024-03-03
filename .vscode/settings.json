@@ -1,6 +1,15 @@
 {
     "files.associations": {
         "sha.h": "c",
-        "stdio.h": "c"
-    }
+        "stdio.h": "c",
+        "stdlib.h": "c",
+        "x509_vfy.h": "c",
+        "pkcs12.h": "c",
+        "x509.h": "c",
+        "main.h": "c",
+        "errno.h": "c"
+    },
+    "makefile.makefilePath": "/home/goliath/Project/Project_holbertonschool/createhash/",
+    "makefile.makePath": "/home/goliath/Project/Project_holbertonschool/createhash/",
+    "CodeGPT.apiKey": "CodeGPT Plus Beta"
 }
