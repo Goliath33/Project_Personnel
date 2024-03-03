@@ -7,7 +7,8 @@
         "pkcs12.h": "c",
         "x509.h": "c",
         "main.h": "c",
-        "errno.h": "c"
+        "errno.h": "c",
+        "time.h": "c"
     },
     "makefile.makefilePath": "/home/goliath/Project/Project_holbertonschool/createhash/",
     "makefile.makePath": "/home/goliath/Project/Project_holbertonschool/createhash/",

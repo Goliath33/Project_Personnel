@@ -9,6 +9,7 @@
 #include <openssl/sha.h>
 #include <time.h>
 
+// Definitions
 #define BUFFER_SIZE 1024
 #define SHA256_BLOCK_SIZE 64
 #define SHA256_DIGEST_SIZE 32
@@ -23,56 +24,94 @@ int main()
     char inputFilename[MAX_FILENAME_LENGTH];
     char outputFilename[MAX_FILENAME_LENGTH];
     char key[MAX_KEY_LENGTH];
-    char hash[SHA256_DIGEST_LENGTH * 2 + 1];
     char operation[MAX_OPERATION_LENGTH];
-    char passphrase[MAX_KEY_LENGTH];
-
-    int choice;
-
-    printf("Enter 1 to Encrypt / 2 to Decrypt");
-    scanf("%d", &choice);
-
-    if (choice == 1)
+    int option;
+    while (1)
     {
-        printf("Encrypting File\n");
-    }
-    else if (choice == 2)
-    {
-        printf("Decrypting File\n");
-    }
-    else
-    {
-        printf("Invalid Choice\n");
-        return 1;
-    }
+        printf("1. Encrypt a file\n");
+        printf("2. Decrypt a file\n");
+        printf("3. Exit\n");
+        printf("Enter your choice: ");
+        scanf("%d", &option);
+        if (option == 3)    
+            break;
+            else if (option < 1 || option > 3)
+                continue;
+                else
+                    printf("\n");
+                    switch (option)
+                    {
+                    case 1:
+                        printf("Enter input filename: ");
+                        scanf("%s", inputFilename);
+                        printf("Enter output filename: ");
+                        scanf("%s", outputFilename);
+                        printf("Enter key: ");
+                        scanf("%s", key);
+                        printf("Enter operation: ");
+                        scanf("%s", operation);
+                        printf("Encrypting...\n");
+                        encryptFile(inputFilename, outputFilename, key);
+                        break;
+                        
+                    case 2:
+                        printf("Enter input filename: ");
+                        scanf("%s", inputFilename);
+                        printf("Enter output filename: ");
+                        scanf("%s", outputFilename);
+                        printf("Enter key: ");
+                        scanf("%s", key);
+                        decryptFile(inputFilename, outputFilename, key);
+                        break;
+                    case 3:
+                        exit(0);
+                    default:
+                        printf("Invalid option\n");
+                        break;
 
-    printf("Enter input filename: ");
-    scanf("%s", inputFilename);
-    printf("Enter output filename: ");
-    scanf("%s", outputFilename);
-    printf("Enter key: ");
-    scanf("%s", key);
-    printf("Enter operation (encrypt/decrypt): ");
-    scanf("%s", operation);
-    printf("Enter passphrase: ");
-    scanf("%s", passphrase);
-
-    if (strcmp(operation, "encrypt") == 0)
-    {
-        encryptFile(inputFilename, outputFilename, key);
+                
+                    }
+        switch (option)
+        {
+        case 1:
+            printf("Enter input filename: ");
+            scanf("%s", inputFilename);
+            printf("Enter output filename: ");
+            scanf("%s", outputFilename);
+            printf("Enter key: ");
+            scanf("%s", key);
+            printf("Enter operation: ");
+            scanf("%s", operation);
+            printf("Encrypting...\n");
+            encryptFile(inputFilename, outputFilename, key);
+            break;
+            
+        case 2:
+            printf("Enter input filename: ");
+            scanf("%s", inputFilename);
+            printf("Enter output filename: ");
+            scanf("%s", outputFilename);
+            printf("Enter key: ");
+            scanf("%s", key);
+            decryptFile(inputFilename, outputFilename, key);
+            break;
+        case 3:
+            exit(0);
+        default:
+            printf("Invalid option\n");
+            break;
+        }           
     }
-    else if (strcmp(operation, "decrypt") == 0)
-    {
-        decryptFile(inputFilename, outputFilename, key);
-    }
-
     return 0;
 }
 
 // Function to get user input
 int main();
+void fatal(char *msg);
+
 // Function to create a SHA256 hash from a passphrase
 void createSHA256Hash(char *passphrase, unsigned char *hash);
+void printHash(unsigned char *hash);
 
 // Function to encrypt or decrypt a file
 int processFile(char *inputFilename, char *outputFilename, char *key, char *operation);

@@ -1,5 +1,10 @@
 #include "main.h"
 
+void fatal(char *msg)
+{
+    printf("Fatal error: %s\n", msg);
+}
+
 void createSHA256Hash(char *passphrase, unsigned char *hash)
 {
     if (strlen(passphrase) > SHA256_DIGEST_LENGTH)
@@ -17,6 +22,15 @@ void createSHA256Hash(char *passphrase, unsigned char *hash)
     }
 
     hash[SHA256_DIGEST_LENGTH * 2] = '\0';
+}
+
+void printHash(unsigned char *hash)
+{
+    printf("\nHash: ");
+    for (int i = 0; i < SHA256_DIGEST_LENGTH; i++)
+    {
+        printf("%02x", hash[i]);
+    }
 }
 
 int processFile(char *inputFilename, char *outputFilename, char *key, char *operation)
@@ -94,7 +108,7 @@ int encryptFile(char *inputFilename, char *outputFilename, char *key)
 
     return 0;
 }
-    
+
 int decryptFile(char *inputFilename, char *outputFilename, char *key)
 {
     unsigned char hash[SHA256_DIGEST_LENGTH];
