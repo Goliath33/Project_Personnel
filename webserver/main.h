@@ -46,7 +46,7 @@ void serve_connection_http(int sockfd, struct sockaddr_in *client_addr_ptr);  //
 void serve_connection_php(int sockfd, struct sockaddr_in *client_addr_ptr);   // serveur connection php
 void serve_connection_file(int sockfd, struct sockaddr_in *client_addr_ptr);  // serveur connection file
 void serve_connection_error(int sockfd, struct sockaddr_in *client_addr_ptr); // serveur connection error
-void serve_connection_proxy(int sockfd, struct sockaddr_in *client_addr_ptr); // serve connection proxy
+void serve_connection_proxy(int sockfd, struct sockaddr_in *client_addr_ptr); // serveur connection proxy
 
 // Gestion des connexions et demandes
 void handle_connection(int sockfd, struct sockaddr_in *client_addr_ptr); // gérer la connexion
