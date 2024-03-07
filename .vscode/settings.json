@@ -12,7 +12,8 @@
         "stat.h": "c",
         "inet.h": "c",
         "pthread.h": "c",
-        "fcntl.h": "c"
+        "fcntl.h": "c",
+        "string.h": "c"
     },
     "makefile.makefilePath": "/home/goliath/Project/Project_holbertonschool/createhash/",
     "makefile.makePath": "/home/goliath/Project/Project_holbertonschool/createhash/",

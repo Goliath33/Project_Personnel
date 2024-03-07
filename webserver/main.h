@@ -30,20 +30,28 @@
 #define WEB_ROOT "/home/goliath/Project/Project_holbertonschool/webserver/web/holbertonschool/"
 #define BUFFER_SIZE 1024
 
-// Prototypes
-int main(int argc, char const *argv[]);                                         //main appele le serveur web    (1er parametre)
-void serve_php(int sockfd, char *file_path);                                    //serveur php                   (2eme parametre)
-void serve_file(int sockfd, char *file_path);                                   //serveur file                  (3eme parametre)
-void serve_request(int sockfd, struct sockaddr_in *client_addr_ptr);            //serveur request               (4eme parametre)
-void serve_http(int sockfd, struct sockaddr_in *client_addr_ptr);               //serveur http                  (5eme parametre)
-void serve_https(int sockfd, struct sockaddr_in *client_addr_ptr);              //serveur https                 (6eme parametre)
-void fatal(const char *message);                                                //fatale message d'erreur       (7eme parametre)
-void handle_request(int sockfd);                                                //handle request                (8eme parametre)
-void handle_proxy_request(int sockfd);                                          //handle proxy request          (9eme parametre)
-void *thread_function(void *arg);                                               //thread function               (10eme parametre)
-void handle_connection(int sockfd, struct sockaddr_in *client_addr_ptr);        //handle connection             (11eme parametre)
-void serve_connection(int sockfd, struct sockaddr_in *client_addr_ptr);         //serve connection              (12eme parametre)
-void serve_connection_proxy(int sockfd, struct sockaddr_in *client_addr_ptr);   //serve connection proxy        (13eme parametre)
+// Prototypes principaux
+int main(int argc, char const *argv[]); // main appelant le serveur web (premier parametre)
+void fatal(const char *message);        // affiche un message d'erreur
+void *thread_function(void *arg);       // fonction de thread
+
+// Serveurs spécifiques
+void serve_php(int sockfd, char *file_path);                                  // serveur php
+void serve_file(int sockfd, char *file_path, char *request);                  // serveur fichier
+void serve_http(int sockfd, struct sockaddr_in *client_addr_ptr);             // serveur http
+void serve_https(int sockfd, struct sockaddr_in *client_addr_ptr);            // serveur https
+void serve_connection(int sockfd, struct sockaddr_in *client_addr_ptr);       // serveur connection
+void serve_connection_https(int sockfd, struct sockaddr_in *client_addr_ptr); // serveur connection https
+void serve_connection_http(int sockfd, struct sockaddr_in *client_addr_ptr);  // serveur connection http
+void serve_connection_php(int sockfd, struct sockaddr_in *client_addr_ptr);   // serveur connection php
+void serve_connection_file(int sockfd, struct sockaddr_in *client_addr_ptr);  // serveur connection file
+void serve_connection_error(int sockfd, struct sockaddr_in *client_addr_ptr); // serveur connection error
+void serve_connection_proxy(int sockfd, struct sockaddr_in *client_addr_ptr); // serve connection proxy
+
+// Gestion des connexions et demandes
+void handle_connection(int sockfd, struct sockaddr_in *client_addr_ptr); // gérer la connexion
+void handle_request(int sockfd);                                         // gérer la requête
+void handle_proxy_request(int sockfd);                                   // gérer la requête proxy
 
 
 #endif // MAIN_H
