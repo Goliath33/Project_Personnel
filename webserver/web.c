@@ -14,21 +14,15 @@
  * individual client connections.
  */
 
-const char *extensions[] = {".html", "text/html", ".php", "application/x-httpd-php", ".jpg", "image/jpeg",
-                            ".png", "image/png", ".gif", "image/gif", ".css", "text/css", ".js", "application/javascript",
-                            ".ico", "image/vnd.microsoft.icon", ".pdf", "application/pdf", ".txt", "text/plain",
-                            ".zip", "application/zip", ".mp3", "audio/mpeg", ".mp4", "video/mp4", ".avi",
-                            "video/x-msvideo", ".mov", "video/quicktime", ".mpg", "video/mpeg", ".mpeg",
-                            "video/mpeg", ".wmv", "video/x-ms-wmv", ".svg", "image/svg+xml"};
+void fatal(const char *message)
+{
 
-const char *mime_types[] = {"text/html", "text/html", "application/x-httpd-php", "application/x-httpd-php",
-                            "image/jpeg", "image/jpeg", "image/png", "image/png", "image/gif", "image/gif",
-                            "text/css", "text/css", "application/javascript", "application/javascript",
-                            "image/vnd.microsoft.icon", "image/vnd.microsoft.icon", "application/pdf",
-                            "application/pdf", "text/plain", "text/plain", "application/zip",
-                            "application/zip", "audio/mpeg", "audio/mpeg", "video/mp4", "video/mp4",
-                            "video/x-msvideo", "video/x-msvideo", "video/quicktime", "video/mpeg",
-                            "video/mpeg", "video/mpeg", "video/x-ms-wmv", "image/svg+xml", "image/svg+xml"};
+    char error_message[1024];
+    snprintf(error_message, sizeof(error_message), "%s: %s", message, strerror(errno));
+    perror(error_message);
+    exit(1);
+    return;
+}
 
 int main(int argc, char const *argv[])
 {
@@ -74,74 +68,6 @@ int main(int argc, char const *argv[])
     return 0;
 }
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/*PROTOTYPES SUPPLÉMENTAIRES*/ ////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void handle_connection(int sockfd, struct sockaddr_in *client_addr_ptr)
-{
-    int fd;
-    char buffer[BUFFER_SIZE];
-    ssize_t numbytes;
-
-    printf("Handling connection from %s\n", inet_ntoa(client_addr_ptr->sin_addr));
-
-    char *file_path;
-    if (access(WEB_ROOT "index.html", F_OK) != -1)
-    {
-        file_path = WEB_ROOT "index.html";
-    }
-    else if (access(WEB_ROOT "index.php", F_OK) != -1)
-    {
-        file_path = WEB_ROOT "index.php";
-    }
-    else
-    {
-        fatal("index file not found");
-    }
-
-    fd = open(file_path, O_RDONLY);
-    if (fd == -1)
-    {
-        fatal("open");
-    }
-
-    while ((numbytes = read(fd, buffer, BUFFER_SIZE)) > 0)
-        send(sockfd, buffer, numbytes, 0);
-    close(fd);
-    close(sockfd);
-
-    return;
-}
-
-void handle_request(int sockfd)
-{
-    pthread_t thread;
-    pthread_create(&thread, NULL, thread_function, &sockfd);
-    pthread_detach(thread);
-    return;
-}
-
-void handle_proxy_request(int sockfd)
-{
-    char buffer[BUFFER_SIZE];
-    ssize_t num_bytes;
-    while ((num_bytes = read(sockfd, buffer, BUFFER_SIZE)) > 0)
-        send(sockfd, buffer, num_bytes, 0);
-    close(sockfd);
-
-    return;
-}
-
-void fatal(const char *message)
-{
-    char error_message[1024];
-    snprintf(error_message, sizeof(error_message), "%s: %s", message, strerror(errno));
-    perror(error_message);
-    exit(1);
-    return;
-}
-
 void *thread_function(void *arg)
 {
     int client_sockfd = *(int *)arg;
@@ -155,59 +81,60 @@ void *thread_function(void *arg)
         return NULL;
     }
 
+    int php_sockfd;
+
+    while (1)
+    {
+        ssize_t bytes_received = recv(client_sockfd, request, sizeof(request) - 1, 0);
+        if (bytes_received <= 0)
+        {
+            break;
+        }
+
+        request[bytes_received] = '\0';
+
+        send(php_sockfd, request, strlen(request), 0);
+
+        char response[BUFFER_SIZE];
+        ssize_t bytes_sent = recv(php_sockfd, response, sizeof(response) - 1, 0);
+        if (bytes_sent <= 0)
+        {
+            break;
+        }
+
+        send(client_sockfd, response, bytes_sent, 0);
+    }
+
     request[bytes_received] = '\0';
 
-    int php_sockfd = socket(PF_INET, SOCK_STREAM, 0);
+    php_sockfd = socket(PF_INET, SOCK_STREAM, 0);
     if (php_sockfd < 0)
     {
         perror("socket creation failed");
         return NULL;
     }
-    struct sockaddr_in php_addr;
-    php_addr.sin_family = 2;
-    php_addr.sin_port = htons(9000);
-    php_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    if (connect(php_sockfd, (struct sockaddr *)&php_addr, sizeof(php_addr)) == -1)
+
+    struct sockaddr_in php_address;
+    memset(&php_address, 0, sizeof(php_address));
+    php_address.sin_family = AF_INET;
+    php_address.sin_port = htons(SERVER_PORT);
+    php_address.sin_addr.s_addr = inet_addr("127.0.0.1");
+    if (connect(php_sockfd, (struct sockaddr *)&php_address, sizeof(php_address)) < 0)
     {
         char error_message[1024];
         snprintf(error_message, sizeof(error_message), "connect: %s", strerror(errno));
         perror(error_message);
         return NULL;
     }
-    if (send(php_sockfd, request, strlen(request), 0) == -1)
-    {
-        char error_message[1024];
-        snprintf(error_message, sizeof(error_message), "send: %s", strerror(errno));
-        perror(error_message);
-        return NULL;
-    }
 
-    char response[BUFFER_SIZE];
-    ssize_t bytes_received_from_php = recv(php_sockfd, response, sizeof(response) - 1, 0);
-    if (bytes_received_from_php == -1)
-    {
-        char error_message[1024];
-        snprintf(error_message, sizeof(error_message), "recv: %s", strerror(errno));
-        perror(error_message);
-        return NULL;
-    }
-    response[bytes_received_from_php] = '\0';
-
-    if (send(client_sockfd, response, strlen(response), 0) == -1)
-    {
-        char error_message[1024];
-        snprintf(error_message, sizeof(error_message), "send: %s", strerror(errno));
-        perror(error_message);
-        return NULL;
-    }
-
-    close(client_sockfd);
+    serve_php(php_sockfd, request);
     close(php_sockfd);
+    close(client_sockfd);
     return NULL;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/*SERVER CONNECTION*/ /////////////////////////////////////////////////////////////////////////////////////////////
+/*SERVER CONNECTION*/ ////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void serve_php(int sockfd, char *file_path)
@@ -288,34 +215,18 @@ void serve_https(int sockfd, struct sockaddr_in *client_addr_ptr)
 void serve_connection(int sockfd, struct sockaddr_in *client_addr_ptr)
 {
     char buffer[BUFFER_SIZE];
-    int num_bytes;
+    ssize_t num_bytes;
 
     while ((num_bytes = recv(sockfd, buffer, BUFFER_SIZE - 1, 0)) > 0)
-    {
-        // Null terminate the string to ensure valid C-string
-        buffer[num_bytes] = '\0';
-        printf("Received request: %s\n", buffer);
-        char *method = strtok(buffer, " ");
-        if (strcasecmp("GET", method) == 0 || strcasecmp("POST", method) == 0)
-        {
-            // Handle HTTP GET or POST requests
-            serve_connection_http(sockfd, client_addr_ptr);
-        }
-        else if (strcasecmp("CONNECT", method) == 0)
-        {
-            // Handle HTTP CONNECT requests
-            serve_connection_https(sockfd, client_addr_ptr);
-        }
-        else if (strncasecmp("GET ", buffer, 4) == 0 || strncasecmp("POST", buffer, 4) == 0)
-        {
-            // Handle other HTTP methods or file requests
-            serve_connection_file(sockfd, client_addr_ptr);
-        }
-    }
+    {                             // Utilisez recv au lieu de read
+        buffer[num_bytes] = '\0'; // Ajoutez ce qui suit pour terminer la chaîne par un caractère nul
+        printf("Received: %s\n", buffer);
 
-    if (num_bytes < 0)
-    {
-        perror("Error reading from socket");
+        if (send(sockfd, buffer, num_bytes, 0) < 0)
+        { // Envoyer à nouveau le message au client
+            perror("Error sending response to client");
+            break;
+        }
     }
 
     close(sockfd);
@@ -325,44 +236,67 @@ void serve_connection_https(int sockfd, struct sockaddr_in *client_addr_ptr)
 {
     char buffer[BUFFER_SIZE];
     ssize_t num_bytes;
-    while ((num_bytes = read(sockfd, buffer, BUFFER_SIZE)) > 0)
-        send(sockfd, buffer, num_bytes, 0);
-    close(sockfd);
 
-    return;
+    while ((num_bytes = read(sockfd, buffer, BUFFER_SIZE)) > 0)
+    {
+        if (write(sockfd, buffer, num_bytes) < 0)
+        {
+            perror("Error sending response to client");
+            break;
+        }
+    }
+
+    close(sockfd);
 }
 
 void serve_connection_http(int sockfd, struct sockaddr_in *client_addr_ptr)
 {
     char buffer[BUFFER_SIZE];
     ssize_t num_bytes;
+
     while ((num_bytes = read(sockfd, buffer, BUFFER_SIZE)) > 0)
-        send(sockfd, buffer, num_bytes, 0);
+    {
+        if (write(sockfd, buffer, num_bytes) < -1)
+        {
+            perror("Error sending response to client");
+            break;
+        }
+    }
+
     close(sockfd);
-
-    return;
 }
-
 void serve_connection_php(int sockfd, struct sockaddr_in *client_addr_ptr)
 {
     char buffer[BUFFER_SIZE];
     ssize_t num_bytes;
-    while ((num_bytes = read(sockfd, buffer, BUFFER_SIZE)) > 0)
-        send(sockfd, buffer, num_bytes, 0);
-    close(sockfd);
 
-    return;
+    while ((num_bytes = read(sockfd, buffer, BUFFER_SIZE)) > 0)
+    {
+        if (write(sockfd, buffer, num_bytes) < -1)
+        {
+            perror("Error sending response to client");
+            break;
+        }
+    }
+
+    close(sockfd);
 }
 
 void serve_connection_file(int sockfd, struct sockaddr_in *client_addr_ptr)
 {
     char buffer[BUFFER_SIZE];
     ssize_t num_bytes;
-    while ((num_bytes = read(sockfd, buffer, BUFFER_SIZE)) > 0)
-        send(sockfd, buffer, num_bytes, 0);
-    close(sockfd);
 
-    return;
+    while ((num_bytes = read(sockfd, buffer, BUFFER_SIZE)) > 0)
+    { // Le signe égal est mis en majuscule pour correspondre au code précédent.
+        if (write(sockfd, buffer, num_bytes) < 0)
+        { // Tous les points de suspension sont remplacés par leur valeur exacte et correctement placée (-1).
+            perror("Error sending response to client");
+            break;
+        }
+    }
+
+    close(sockfd);
 }
 
 void serve_connection_error(int sockfd, struct sockaddr_in *client_addr_ptr)
@@ -376,13 +310,274 @@ void serve_connection_error(int sockfd, struct sockaddr_in *client_addr_ptr)
     return;
 }
 
-void serve_connection_proxy(int sockfd, struct sockaddr_in *client_addr_ptr)
+// void serve_connection_proxy(int sockfd, struct sockaddr_in *client_addr_ptr)
+//{
+// char buffer[BUFFER_SIZE];
+// ssize_t num_bytes;
+// while ((num_bytes = read(sockfd, buffer, BUFFER_SIZE)) > 0)
+// send(sockfd, buffer, num_bytes, 0);
+// close(sockfd);
+
+// return;
+//}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/*GESTION DES REQUETES*/ /////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void send_file(int sockfd, char *file_path)
+{
+    int fd;
+    ssize_t numbytes;
+    char buffer[BUFFER_SIZE];
+    fd = open(file_path, O_RDONLY);
+    if (fd == -1)
+    {
+        send_404(sockfd);
+        return;
+    }
+    while ((numbytes = read(fd, buffer, BUFFER_SIZE)) > 0)
+        if (send(sockfd, buffer, numbytes, 0) < 0)
+        {
+            perror("Error sending response to client");
+            break;
+        }
+    close(fd);
+
+    return;
+}
+
+void send_php(int sockfd, char *file_path)
+{
+    send_file(sockfd, file_path);
+    return;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/*PROTOTYPES SUPPLÉMENTAIRES*/ ///////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Handles a new incoming client connection.
+ * Reads the requested file from disk and sends it to the client.
+ * If no index file exists, sends a 404 response.
+ */
+void handle_connection(int sockfd, struct sockaddr_in *client_addr_ptr)
+{
+    int fd;
+    char buffer[BUFFER_SIZE];
+    ssize_t numbytes;
+
+    printf("Handling connection from %s\n", inet_ntoa(client_addr_ptr->sin_addr));
+
+    char *file_path;
+    if (access(WEB_ROOT "index.html", F_OK) != -1)
+    {
+        file_path = WEB_ROOT "index.html";
+    }
+    else if (access(WEB_ROOT "index.php", F_OK) != -1)
+    {
+        file_path = WEB_ROOT "index.php";
+    }
+    else
+    {
+        fatal("index file not found");
+    }
+
+    fd = open(file_path, O_RDONLY);
+    if (fd == -1)
+    {
+        fatal("open");
+    }
+
+    while ((numbytes = read(fd, buffer, BUFFER_SIZE)) > 0)
+        send(sockfd, buffer, numbytes, 0);
+    close(fd);
+    close(sockfd);
+
+    return;
+}
+
+void handle_request(int sockfd)
+{
+    pthread_t thread;
+    int err = pthread_create(&thread, NULL, thread_function, &sockfd);
+    if (err != 0)
+    {
+        send_500(sockfd);
+        return;
+    }
+    return;
+}
+
+void handle_proxy_request(int sockfd)
 {
     char buffer[BUFFER_SIZE];
     ssize_t num_bytes;
     while ((num_bytes = read(sockfd, buffer, BUFFER_SIZE)) > 0)
+    {
         send(sockfd, buffer, num_bytes, 0);
+    }
+    if (num_bytes == -1)
+    {
+        send_500(sockfd);
+        return;
+    }
     close(sockfd);
+    return;
+}
 
+void handle_http_request(int client_socket)
+{
+    char request[1024];
+    ssize_t num_bytes = recv(client_socket, request, sizeof(request), 0);
+    if (num_bytes == -1)
+    {
+        send_500(client_socket);
+        close(client_socket);
+        return;
+    }
+
+    FILE *css_file = fopen("*.css", "r");
+    if (css_file)
+    {
+        fseek(css_file, 0, SEEK_END);
+        long file_size = ftell(css_file);
+        fseek(css_file, 0, SEEK_SET);
+        char *file_content = malloc(file_size + 1);
+        fread(file_content, file_size, 1, css_file);
+        fclose(css_file);
+        file_content[file_size] = '\0';
+
+        char http_response[1024];
+        sprintf(http_response, "HTTP/1.1 200 OK\r\nContent-Type: text/css\r\nContent-Length: %ld\r\n\r\n%s",
+                file_size, file_content);
+        send(client_socket, http_response, strlen(http_response), 0);
+
+        free(file_content);
+    }
+    else
+    {
+        send_404(client_socket);
+    }
+
+    close(client_socket);
+}
+
+void handle_file(int client_socket, const char *file_path)
+{
+    int fd;
+    ssize_t numbytes;
+    char buffer[BUFFER_SIZE];
+
+    if (client_socket < 0 || client_socket > INT_MAX)
+    {
+        fprintf(stderr, "Invalid socket file descriptor: %d\n", client_socket);
+        return;
+    }
+
+    /* Open the file */
+    fd = open(file_path, O_RDONLY);
+    if (fd == -1)
+    {
+        char error[BUFFER_SIZE];
+        snprintf(error, sizeof(error), "Failed to open %s: %s\n",
+                 file_path, strerror(errno));
+        send(client_socket, error, strlen(error), 0);
+        return;
+    }
+
+    /* Read and send the file content */
+    while ((numbytes = read(fd, buffer, sizeof(buffer))) > 0)
+    {
+        if (send(client_socket, buffer, numbytes, 0) == -1)
+        {
+            perror("Error sending response");
+            break;
+        }
+    }
+
+    /* Handle errors during read */
+    if (numbytes == -1)
+    {
+        char error[BUFFER_SIZE];
+        snprintf(error, sizeof(error), "Failed to read %s: %s\n",
+                 file_path, strerror(errno));
+        send(client_socket, error, strlen(error), 0);
+    }
+
+    /* Close the file descriptor */
+    if (close(fd) == -1)
+    {
+        perror("Error closing file");
+    }
+}
+
+void handle_proxy(int client_socket, char *file_path)
+{
+    handle_file(client_socket, file_path);
+    return;
+}
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/*GESTION DES ERREURS*/ //////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void send_404(int sockfd)
+{
+    send(sockfd, "HTTP/1.1 404 Not Found\r\n\r\n", 26, 0);
+    return;
+}
+
+void send_500(int sockfd)
+{
+    send(sockfd, "HTTP/1.1 500 Internal Server Error\r\n\r\n", 40, 0);
+    return;
+}
+
+void send_502(int sockfd)
+{
+    send(sockfd, "HTTP/1.1 502 Bad Gateway\r\n\r\n", 30, 0);
+    return;
+}
+
+void send_503(int sockfd)
+{
+    send(sockfd, "HTTP/1.1 503 Service Unavailable\r\n\r\n", 40, 0);
+    return;
+}
+
+void send_504(int sockfd)
+{
+    send(sockfd, "HTTP/1.1 504 Gateway Timeout\r\n\r\n", 33, 0);
+    return;
+}
+
+void send_505(int sockfd)
+{
+    send(sockfd, "HTTP/1.1 505 HTTP Version Not Supported\r\n\r\n", 46, 0);
+    return;
+}
+
+void send_507(int sockfd)
+{
+    send(sockfd, "HTTP/1.1 507 Insufficient Storage\r\n\r\n", 37, 0);
+    return;
+}
+
+void send_508(int sockfd)
+{
+    send(sockfd, "HTTP/1.1 508 Loop Detected\r\n\r\n", 30, 0);
+    return;
+}
+
+void send_509(int sockfd)
+{
+    send(sockfd, "HTTP/1.1 509 Bandwidth Limit Exceeded\r\n\r\n", 46, 0);
+    return;
+}
+
+void send_510(int sockfd)
+{
+    send(sockfd, "HTTP/1.1 510 Not Extended\r\n\r\n", 29, 0);
     return;
 }
