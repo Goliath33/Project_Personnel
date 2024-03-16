@@ -430,15 +430,15 @@ void handle_proxy_request(int sockfd)
 void handle_http_request(int client_socket)
 {
     char request[1024];
-    ssize_t num_bytes = recv(client_socket, request, sizeof(request), 0);
-    if (num_bytes == -1)
+    ssize_t request_size = recv(client_socket, request, sizeof(request), 0);
+    if (request_size == -1)
     {
         send_500(client_socket);
         close(client_socket);
         return;
     }
 
-    FILE *css_file = fopen("*.css", "r");
+    FILE *css_file = fopen("style.css", "r");
     if (css_file)
     {
         fseek(css_file, 0, SEEK_END);
@@ -449,10 +449,10 @@ void handle_http_request(int client_socket)
         fclose(css_file);
         file_content[file_size] = '\0';
 
-        char http_response[1024];
-        sprintf(http_response, "HTTP/1.1 200 OK\r\nContent-Type: text/css\r\nContent-Length: %ld\r\n\r\n%s",
+        char response[1024];
+        sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/css\r\nContent-Length: %ld\r\n\r\n%s",
                 file_size, file_content);
-        send(client_socket, http_response, strlen(http_response), 0);
+        send(client_socket, response, strlen(response), 0);
 
         free(file_content);
     }
@@ -463,6 +463,8 @@ void handle_http_request(int client_socket)
 
     close(client_socket);
 }
+
+
 
 void handle_file(int client_socket, const char *file_path)
 {

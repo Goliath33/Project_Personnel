@@ -31,7 +31,7 @@
 
 // Definitions
 #define SERVER_PORT 80
-#define WEB_ROOT "/home/goliath/Projet/Project_holbertonschool/webserver/web/"
+#define WEB_ROOT "/home/goliath/Project/Project_holbertonschool/webserver/web/holbertonschool/"
 #define BUFFER_SIZE 1024
 
 // Prototypes principaux
